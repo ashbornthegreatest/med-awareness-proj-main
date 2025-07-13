@@ -26,7 +26,11 @@ app.use(express.static(__dirname));
 
 // Serve frontend
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "index.html"));
+  res.sendFile(path.join(__dirname, "..", "frontend", "index.html"));
+});
+
+app.get("/chem", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "frontend", "chemfind.html"));
 });
 
 // Upload base64 image and return hosted URL

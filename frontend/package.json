@@ -1,7 +1,0 @@
-{
-  "dependencies": {},
-  "devDependencies": {
-    "autoprefixer": "^10.4.21",
-    "tailwind": "^4.0.0"
-  }
-}

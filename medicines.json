@@ -710,14 +710,6 @@
     "mechanism": "Inhibits vitamin K-dependent clotting factors (II, VII, IX, X)."
   },
   {
-    "name": "Paracetamol",
-    "uses": "Paracetamol is a common over-the-counter medicine used to relieve mild to moderate pain (like headaches, muscle aches, toothaches) and to reduce fever. It’s gentle on the stomach compared to NSAIDs.",
-    "sideEffects": "Generally well tolerated, but high doses can cause severe liver damage or failure, which may be fatal. Rare side effects include skin rashes, allergic reactions like swelling or difficulty breathing, and low blood cell counts in rare cases.",
-    "precautions": "Do not take with alcohol or other medicines containing paracetamol. Avoid overdose — check all cold/flu remedies for duplicate ingredients.",
-    "dosage": "Adults: 500–1000 mg every 4–6 hours, max 4 grams per day. Children: follow pediatric dosing.",
-    "mechanism": "Works mainly in the brain by inhibiting prostaglandin production, lowering pain and fever signals."
-  },
-  {
     "name": "Ibuprofen",
     "uses": "Ibuprofen is a non-steroidal anti-inflammatory drug (NSAID) used for relief of pain, fever, and inflammation. Common for headaches, muscle pain, arthritis, and menstrual cramps.",
     "sideEffects": "Can cause stomach irritation, nausea, heartburn, or even ulcers and bleeding in the stomach. Long-term or high-dose use may affect kidney function, raise blood pressure, and increase risk of heart attack or stroke. Allergic reactions like rash or asthma flare-ups can occur.",

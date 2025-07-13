@@ -2,12 +2,228 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ChemiSearch - Arshpreet & Naman</title>
-  <link rel="stylesheet" href="style.css"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Medicine OCR Matcher</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            light: {
+              bg: '#f8f9fa',
+              surface: '#ffffff',
+              text: '#1a1b26',
+              accent: '#0077ff',
+              muted: '#6c757d',
+              border: '#dee2e6',
+              error: '#dc3545'
+            },
+            dark: {
+              bg: '#1a1b26',
+              surface: '#24283b',
+              text: '#c0caf5',
+              accent: '#7aa2f7',
+              muted: '#a9b1d6',
+              border: '#3b4261',
+              error: '#f7768e'
+            }
+          }
+        }
+      }
+    };
+  </script>
 </head>
-<body>
+<body class="font-sans min-h-screen transition-colors duration-300 flex flex-col bg-light-bg text-light-text dark:bg-dark-bg dark:text-dark-text">
 
-  
+  <!-- Navbar -->
+  <nav class="bg-light-surface dark:bg-dark-surface px-6 py-4 flex justify-between items-center sticky top-0 z-10 shadow">
+    <h1 class="text-lg sm:text-xl font-bold text-light-accent dark:text-dark-accent">🧠 OCR Matcher</h1>
+    <a href="/chem" class="px-4 py-1 rounded-full text-sm bg-light-accent dark:bg-dark-accent text-white hover:opacity-90 transition">chemiSearch</a>
+    <label class="flex items-center gap-2 cursor-pointer">
+      <span class="text-sm text-light-muted dark:text-dark-muted">Theme</span>
+      <div class="relative">
+        <input type="checkbox" id="themeToggle" class="sr-only peer" />
+        <div class="w-10 h-5 bg-light-border dark:bg-dark-border rounded-full peer-checked:bg-light-accent dark:peer-checked:bg-dark-accent transition"></div>
+        <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
+      </div>
+    </label>
+  </nav>
+
+  <!-- Main Section -->
+  <main class="flex-grow flex flex-col items-center justify-center px-4 py-16 space-y-6">
+    <!-- Upload Button -->
+    <input type="file" id="fileInput" accept="image/*" class="hidden" />
+    <label for="fileInput"
+      class="flex items-center gap-2 px-6 py-3 rounded-full cursor-pointer bg-light-accent dark:bg-dark-accent text-white hover:opacity-90 transition">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 15a4 4 0 100-8 4 4 0 000 8zm3-3h12m0 0a4 4 0 100-8 4 4 0 000 8zM9 21h6m-3-3v3" />
+      </svg>
+      <span class="text-sm font-medium">Upload Image</span>
+    </label>
+
+    <!-- URL / Text Input -->
+    <div class="flex gap-2 w-full max-w-md">
+      <input id="urlInput" type="text" placeholder="Paste image URL or type medicine name"
+             class="flex-1 p-2 rounded-full bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border text-light-text dark:text-dark-text placeholder-light-muted dark:placeholder-dark-muted" />
+      <button id="urlSubmit"
+              class="bg-light-accent dark:bg-dark-accent text-white px-4 rounded-full hover:opacity-90 transition">
+        Submit
+      </button>
+    </div>
+
+    <!-- Image Preview -->
+    <div id="previewContainer" class="hidden w-full max-w-md">
+      <p class="text-center text-xs text-light-muted dark:text-dark-muted mb-2">Image Preview:</p>
+      <img id="preview"
+           class="rounded max-h-56 w-full object-contain border border-light-border dark:border-dark-border"
+           alt="Preview" />
+    </div>
+
+    <!-- Status & Result -->
+    <div id="status" class="text-center text-sm italic text-light-muted dark:text-dark-muted">
+      Awaiting input.
+    </div>
+    <div id="matched" class="space-y-4 w-full max-w-md"></div>
+  </main>
+
+  <!-- Script -->
+  <script>
+    const html = document.documentElement;
+    const toggle = document.getElementById('themeToggle');
+    const fileInput = document.getElementById("fileInput");
+    const preview = document.getElementById("preview");
+    const previewContainer = document.getElementById("previewContainer");
+    const status = document.getElementById("status");
+    const matched = document.getElementById("matched");
+
+    const applyTheme = (theme) => {
+      html.classList.toggle('dark', theme === 'dark');
+      localStorage.setItem('theme', theme);
+    };
+
+    const stored = localStorage.getItem('theme');
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(stored || (systemPrefersDark ? 'dark' : 'light'));
+    toggle.checked = html.classList.contains('dark');
+    toggle.addEventListener('change', () => {
+      applyTheme(toggle.checked ? 'dark' : 'light');
+    });
+
+    fileInput.addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      matched.innerHTML = "";
+      previewContainer.classList.add("hidden");
+
+      if (!file) {
+        status.textContent = "No file selected.";
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async function (e) {
+        const base64 = e.target.result;
+        preview.src = base64;
+        previewContainer.classList.remove("hidden");
+        status.innerHTML = `Uploading image... <span class='animate-spin inline-block w-4 h-4 border-2 border-accent border-t-transparent rounded-full ml-2'></span>`;
+
+        try {
+          const uploadRes = await fetch("/api/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: base64.split(",")[1] }),
+          });
+
+          const uploadData = await uploadRes.json();
+          if (!uploadRes.ok) {
+            status.textContent = `❌ Upload failed: ${uploadData.error}`;
+            return;
+          }
+
+          const imageUrl = uploadData.url;
+          status.innerHTML = `Running OCR... <span class='animate-spin inline-block w-4 h-4 border-2 border-accent border-t-transparent rounded-full ml-2'></span>`;
+
+          const endpoint = new URL("/api/vision", window.location.origin);
+          endpoint.searchParams.append("url", imageUrl);
+
+          const visionRes = await fetch(endpoint);
+          const visionData = await visionRes.json();
+
+          if (!visionRes.ok || !visionData.matchedMedicines) {
+            status.textContent = `❌ OCR failed or no data returned`;
+            return;
+          }
+
+          renderMatches(visionData.matchedMedicines);
+        } catch (err) {
+          status.textContent = `❌ Error: ${err.message}`;
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById("urlSubmit").addEventListener("click", async () => {
+      const input = document.getElementById("urlInput").value.trim();
+      matched.innerHTML = "";
+      previewContainer.classList.add("hidden");
+
+      if (!input) {
+        status.textContent = "No input provided.";
+        return;
+      }
+
+      if (input.startsWith("http://") || input.startsWith("https://")) {
+        preview.src = input;
+        previewContainer.classList.remove("hidden");
+        status.innerHTML = `Fetching image... <span class='animate-spin inline-block w-4 h-4 border-2 border-accent border-t-transparent rounded-full ml-2'></span>`;
+        try {
+          const endpoint = new URL("/api/vision", window.location.origin);
+          endpoint.searchParams.append("url", input);
+          const visionRes = await fetch(endpoint);
+          const visionData = await visionRes.json();
+
+          if (!visionRes.ok || !visionData.matchedMedicines) {
+            status.textContent = `❌ OCR failed or no data returned`;
+            return;
+          }
+
+          renderMatches(visionData.matchedMedicines);
+        } catch (err) {
+          status.textContent = `❌ Error: ${err.message}`;
+        }
+      } else {
+        status.textContent = "Searching local data...";
+        try {
+          const res = await fetch("/medicines.json");
+          const data = await res.json();
+          const matches = data.filter(med =>
+            med.name.toLowerCase().includes(input.toLowerCase())
+          );
+          renderMatches(matches);
+        } catch (err) {
+          status.textContent = `❌ Error fetching local data: ${err.message}`;
+        }
+      }
+    });
+
+    function renderMatches(matches) {
+      if (matches.length > 0) {
+        status.innerHTML = `✅ Found <strong>${matches.length}</strong> match(es):`;
+        matched.innerHTML = matches.map(med => `
+          <div class="bg-bg border border-border p-4 rounded-lg">
+            <h2 class="text-lg font-semibold text-accent mb-1">${med.name}</h2>
+            <p><strong>Uses:</strong> ${med.uses}</p>
+            <p><strong>Side Effects:</strong> ${med.sideEffects}</p>
+            <p><strong>Precautions:</strong> ${med.precautions}</p>
+            <p><strong>Dosage:</strong> ${med.dosage}</p>
+            <p><strong>Mechanism:</strong> ${med.mechanism}</p>
+          </div>`).join("");
+      } else {
+        status.textContent = "❌ No matches found.";
+      }
+    }
+  </script>
 </body>
 </html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🧪 PubChem Lookup</title>
+
+  <!-- Tailwind + Theme Colors -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            light: {
+              bg: '#f8f9fa',
+              surface: '#ffffff',
+              text: '#1a1b26',
+              accent: '#0077ff',
+              muted: '#6c757d',
+              border: '#dee2e6',
+              error: '#dc3545'
+            },
+            dark: {
+              bg: '#1a1b26',
+              surface: '#24283b',
+              text: '#c0caf5',
+              accent: '#7aa2f7',
+              muted: '#a9b1d6',
+              border: '#3b4261',
+              error: '#f7768e'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Theme Toggle Script -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const html = document.documentElement;
+      const toggle = document.getElementById('themeToggle');
+
+      const applyTheme = (theme) => {
+        html.classList.toggle('dark', theme === 'dark');
+        localStorage.setItem('theme', theme);
+      };
+
+      const stored = localStorage.getItem('theme');
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const initialTheme = stored || (systemPrefersDark ? 'dark' : 'light');
+      applyTheme(initialTheme);
+      if (toggle) toggle.checked = initialTheme === 'dark';
+
+      toggle?.addEventListener('change', () => {
+        applyTheme(toggle.checked ? 'dark' : 'light');
+      });
+    });
+  </script>
+
+  <!-- PubChem Fetch Script -->
+  <script>
+    async function fetchPubChemData() {
+      const chemName = document.getElementById("chemInput").value.trim();
+      const output = document.getElementById("chemOutput");
+      const status = document.getElementById("status");
+      output.innerHTML = "";
+
+      if (!chemName) return status.textContent = "Please enter a chemical name.";
+
+      status.textContent = "Fetching data...";
+
+      try {
+        const res = await fetch(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(chemName)}/JSON`);
+        if (!res.ok) throw new Error("Chemical not found");
+
+        const data = await res.json();
+        const info = data?.PC_Compounds?.[0];
+
+        if (!info) return status.textContent = "No data found.";
+
+        const cid = info.id?.id?.cid;
+        const imgUrl = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/PNG?image_size=large`;
+
+        const filteredProps = info.props.filter(p => {
+          const label = p.urn.label;
+          const name = p.urn.name || "";
+          return !(label === "Fingerprint" && name === "SubStructure Keys") &&
+                 !(label === "IUPAC Name" && ["Allowed", "CAS-like Style", "Markup", "Preferred", "Systematic", "Traditional"].includes(name));
+        });
+
+        const props = filteredProps.map(p => {
+          const label = p.urn.label + (p.urn.name ? ` (${p.urn.name})` : "");
+          let val = p.value?.sval || p.value?.fval || p.value?.ival || p.value?.binary || "-";
+          if (typeof val === "string") val = val.replace(/;/g, ' ');
+          return `<div><b>${label}:</b> ${val}</div>`;
+        }).join("\n");
+
+        output.innerHTML = `
+          <div class="p-4 bg-light-surface dark:bg-dark-surface rounded-lg border border-light-border dark:border-dark-border space-y-4">
+            <h2 class="text-lg font-semibold">Results for: <span class="text-light-accent dark:text-dark-accent">${chemName}</span></h2>
+            <img src="${imgUrl}" alt="Chemical Structure" class="mx-auto border rounded max-h-64">
+            <div class="space-y-1">${props}</div>
+          </div>
+        `;
+        status.textContent = "Data fetched successfully.";
+      } catch (err) {
+        status.textContent = `Error: ${err.message}`;
+      }
+    }
+  </script>
+</head>
+
+<body class="font-sans min-h-screen transition-colors duration-300 flex flex-col bg-light-bg text-light-text dark:bg-dark-bg dark:text-dark-text">
+  <!-- Navbar -->
+  <nav class="bg-light-surface dark:bg-dark-surface px-6 py-4 flex justify-between items-center sticky top-0 z-10 shadow">
+    <div class="flex items-center gap-4">
+      <h1 class="text-lg sm:text-xl font-bold text-light-accent dark:text-dark-accent">🧪 PubChem Lookup</h1>
+      <a href="/" class="px-4 py-1 rounded-full text-sm bg-light-accent dark:bg-dark-accent text-white hover:opacity-90 transition">mediSearch</a>
+    </div>
+    <label class="flex items-center gap-2 cursor-pointer">
+      <span class="text-sm text-light-muted dark:text-dark-muted">Theme</span>
+      <div class="relative">
+        <input type="checkbox" id="themeToggle" class="sr-only peer" />
+        <div class="w-10 h-5 bg-light-border dark:bg-dark-border rounded-full peer-checked:bg-light-accent dark:peer-checked:bg-dark-accent transition"></div>
+        <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
+      </div>
+    </label>
+  </nav>
+
+  <!-- Main Section -->
+  <main class="flex-grow flex flex-col items-center justify-center px-4 py-16 space-y-6">
+    <div class="flex gap-2 w-full max-w-md">
+      <input id="chemInput" type="text" placeholder="Enter chemical name..."
+             class="flex-1 p-2 rounded-full bg-light-surface dark:bg-dark-surface border border-light-border dark:border-dark-border text-light-text dark:text-dark-text placeholder-light-muted dark:placeholder-dark-muted" />
+      <button onclick="fetchPubChemData()"
+              class="bg-light-accent dark:bg-dark-accent text-white px-4 rounded-full hover:opacity-90 transition">
+        Search
+      </button>
+    </div>
+
+    <!-- Status -->
+    <div id="status" class="text-center text-sm italic text-light-muted dark:text-dark-muted">
+      Awaiting input.
+    </div>
+
+    <!-- Output -->
+    <div id="chemOutput" class="space-y-4 w-full max-w-md"></div>
+  </main>
+</body>
+</html>
